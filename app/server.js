@@ -1,9 +1,19 @@
 const express = require("express");
 const os = require("os");
 const path = require("path");
+const { Pool } = require("pg");
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+// PostgreSQL connection
+const pool = new Pool({
+    host: process.env.DB_HOST || "localhost",
+    port: process.env.DB_PORT || 5432,
+    database: process.env.DB_NAME || "devopsdb",
+    user: process.env.DB_USER || "devopsuser",
+    password: process.env.DB_PASSWORD || "devopspassword"
+});
 
 app.use(express.json());
 
@@ -23,8 +33,6 @@ app.get("/health", (req, res) => {
 
 // Application information API
 app.get("/api/info", (req, res) => {
-    console.log("DevOps Application information requested");
-
     res.json({
         application: "DevOps Application",
         version: "1.0.0",
@@ -32,6 +40,30 @@ app.get("/api/info", (req, res) => {
         hostname: os.hostname(),
         timestamp: new Date().toISOString()
     });
+});
+
+// PostgreSQL database test API
+app.get("/db-test", async (req, res) => {
+    try {
+        const result = await pool.query("SELECT NOW() AS current_time");
+
+        console.log("PostgreSQL database connection successful");
+
+        res.json({
+            application: "DevOps Application",
+            database: "PostgreSQL",
+            status: "CONNECTED",
+            time: result.rows[0].current_time
+        });
+    } catch (error) {
+        console.error("Database connection failed:", error.message);
+
+        res.status(500).json({
+            database: "PostgreSQL",
+            status: "ERROR",
+            message: "Database connection failed"
+        });
+    }
 });
 
 // Start server
