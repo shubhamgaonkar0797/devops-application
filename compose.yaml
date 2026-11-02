@@ -4,9 +4,9 @@ services:
       context: ./app
     container_name: devops-application
     ports:
-      - "8080:8080"
+      - "8082:8082"
     environment:
-      PORT: 8080
+      PORT: 8082
       NODE_ENV: production
       DB_HOST: database
       DB_PORT: 5432
