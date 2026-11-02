@@ -1,10 +1,12 @@
+
 services:
   app:
-    build:
-      context: ./app
+    image: shubham0797/devops-application:latest
     container_name: devops-application
+
     ports:
       - "8082:8082"
+
     environment:
       PORT: 8082
       NODE_ENV: production
@@ -13,26 +15,35 @@ services:
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
+
     depends_on:
       database:
         condition: service_healthy
+
     restart: unless-stopped
 
   database:
     image: postgres:16-alpine
     container_name: devops-database
+
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
     volumes:
       - postgres-data:/var/lib/postgresql/data
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
       interval: 5s
       timeout: 5s
       retries: 10
+
     restart: unless-stopped
 
 volumes:
   postgres-data:
+
