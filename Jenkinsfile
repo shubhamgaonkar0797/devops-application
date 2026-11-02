@@ -2,39 +2,36 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME = 'devops-application'
-        DOCKER_IMAGE = 'devops-application'
+        DOCKER_IMAGE = 'shubham0797/devops-application'
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                echo 'Getting DevOps Application source code from GitHub'
+                echo 'Checking out source code from GitHub'
                 checkout scm
             }
         }
 
         stage('Verify Files') {
             steps {
-                echo 'Checking application files'
-
                 sh '''
-                    ls -la
-                    ls -la app
                     test -f app/Dockerfile
                     test -f app/package.json
                     test -f app/server.js
+                    echo "Application files verified"
                 '''
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo 'Building Docker image'
-
                 sh '''
-                    docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ./app
+                    docker build \
+                      -t ${DOCKER_IMAGE}:${BUILD_NUMBER} \
+                      -t ${DOCKER_IMAGE}:latest \
+                      ./app
                 '''
             }
         }
@@ -46,15 +43,41 @@ pipeline {
                 '''
             }
         }
+
+        stage('Push to Docker Hub') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKERHUB_USER',
+                        passwordVariable: 'DOCKERHUB_TOKEN'
+                    )
+                ]) {
+                    sh '''
+                        set +x
+
+                        printf '%s' "$DOCKERHUB_TOKEN" | \
+                          docker login \
+                          --username "$DOCKERHUB_USER" \
+                          --password-stdin
+
+                        docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                        docker push ${DOCKER_IMAGE}:latest
+
+                        docker logout
+                    '''
+                }
+            }
+        }
     }
 
     post {
         success {
-            echo 'DevOps Application pipeline completed successfully!'
+            echo 'DevOps Application image successfully pushed to Docker Hub!'
         }
 
         failure {
-            echo 'DevOps Application pipeline failed. Check the console output.'
+            echo 'Pipeline failed. Please check Console Output.'
         }
     }
 }
