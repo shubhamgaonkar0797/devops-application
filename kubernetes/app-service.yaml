@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: devops-application
+  namespace: devops-application
+spec:
+  type: ClusterIP
+  selector:
+    app: devops-application
+  ports:
+    - name: http
+      port: 8082
+      targetPort: 8082
+      protocol: TCP

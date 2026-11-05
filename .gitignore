@@ -15,3 +15,5 @@ logs/
 # Temporary files
 tmp/
 temp/
+
+kubernetes/postgres-secret.yaml
