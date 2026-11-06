@@ -2,6 +2,9 @@
 services:
   app:
     image: shubham0797/devops-application:latest
+    build:
+      context: ./app
+      dockerfile: Dockerfile
     container_name: devops-application
 
     ports:
