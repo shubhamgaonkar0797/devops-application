@@ -4,28 +4,28 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = 'shubham0797/devops-application'
-        PROJECT_DIR = '/home/ubuntu/devops-application'
-        COMPOSE_FILE = '/home/ubuntu/devops-application/compose.yaml'
+        KUBECONFIG = '/var/lib/jenkins/.kube/config'
+        K8S_NAMESPACE = 'devops-application'
     }
 
     stages {
-
         stage('Checkout') {
             steps {
-                echo 'Checking out source code from GitHub'
                 checkout scm
             }
         }
 
         stage('Verify Files') {
             steps {
-                echo 'Verifying application files'
-
                 sh '''
+                    set -e
                     test -f app/Dockerfile
                     test -f app/package.json
                     test -f app/server.js
-                    test -f compose.yaml
+                    test -f kubernetes/app-deployment.yaml
+                    test -f kubernetes/postgres-deployment.yaml
+                    test -f kubernetes/postgres-pvc.yaml
+                    test -f kubernetes/app-service.yaml
                     echo "All required files verified"
                 '''
             }
@@ -33,8 +33,6 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                echo 'Building Docker image'
-
                 sh '''
                     docker build \
                       -t ${DOCKER_IMAGE}:${BUILD_NUMBER} \
@@ -46,9 +44,7 @@ pipeline {
 
         stage('Verify Docker Image') {
             steps {
-                sh '''
-                    docker images ${DOCKER_IMAGE}
-                '''
+                sh 'docker images ${DOCKER_IMAGE}'
             }
         }
 
@@ -63,7 +59,6 @@ pipeline {
                 ]) {
                     sh '''
                         set +x
-
                         printf '%s' "$DOCKERHUB_TOKEN" | \
                           docker login \
                           --username "$DOCKERHUB_USER" \
@@ -71,42 +66,45 @@ pipeline {
 
                         docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
                         docker push ${DOCKER_IMAGE}:latest
-
                         docker logout
                     '''
                 }
             }
         }
 
-        stage('Deploy Application') {
+        stage('Deploy to Kubernetes') {
             steps {
-                echo 'Deploying latest application image using Docker Compose'
-
                 sh '''
-                    docker compose \
-                      --project-directory "$PROJECT_DIR" \
-                      -f "$COMPOSE_FILE" \
-                      pull app
+                    set -e
 
-                    docker compose \
-                      --project-directory "$PROJECT_DIR" \
-                      -f "$COMPOSE_FILE" \
-                      up -d --no-deps app
+                    kubectl apply -f kubernetes/postgres-pvc.yaml
+                    kubectl apply -f kubernetes/postgres-deployment.yaml
+                    kubectl apply -f kubernetes/postgres-service.yaml
+                    kubectl apply -f kubernetes/app-deployment.yaml
+                    kubectl apply -f kubernetes/app-service.yaml
+
+                    kubectl set image \
+                      deployment/devops-application \
+                      devops-application=${DOCKER_IMAGE}:${BUILD_NUMBER} \
+                      -n ${K8S_NAMESPACE}
                 '''
             }
         }
 
-        stage('Verify Deployment') {
+        stage('Verify Kubernetes Deployment') {
             steps {
-                echo 'Checking application health'
-
                 sh '''
-                    sleep 5
+                    set -e
 
-                    curl --fail --silent \
-                      http://localhost:8082/health
+                    kubectl rollout status deployment/postgres \
+                      -n ${K8S_NAMESPACE} --timeout=180s
 
-                    echo "Application deployment verified"
+                    kubectl rollout status deployment/devops-application \
+                      -n ${K8S_NAMESPACE} --timeout=180s
+
+                    kubectl get deployments -n ${K8S_NAMESPACE}
+                    kubectl get pods -n ${K8S_NAMESPACE}
+                    kubectl get services -n ${K8S_NAMESPACE}
                 '''
             }
         }
@@ -114,9 +112,8 @@ pipeline {
 
     post {
         success {
-            echo 'DevOps Application CI/CD pipeline completed successfully!'
+            echo 'DevOps Application successfully deployed to Kubernetes!'
         }
-
         failure {
             echo 'Pipeline failed. Check Console Output for details.'
         }

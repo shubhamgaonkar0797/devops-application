@@ -17,3 +17,6 @@ tmp/
 temp/
 
 kubernetes/postgres-secret.yaml
+
+kubernetes/postgres-secret.yaml
+kubernetes/jenkins-token-secret.yaml
