@@ -14,7 +14,7 @@ RUN npm ci --omit=dev
 COPY . .
 
 # Set application port
-EXPOSE 8080
+EXPOSE 8082
 
 # Start the application
 CMD ["npm", "start"]
